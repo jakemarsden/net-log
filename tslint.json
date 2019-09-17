@@ -1,0 +1,60 @@
+{
+  "defaultSeverity": "error",
+  "extends": [
+    "tslint:recommended"
+  ],
+  "rules": {
+    "arrow-parens": {
+      "options": "ban-single-arg-parens"
+    },
+    "comment-format": {
+      "severity": "off"
+    },
+    "interface-name": {
+      "options": "never-prefix"
+    },
+    "max-classes-per-file": {
+      "severity": "off"
+    },
+    "max-line-length": {
+      "options": 120
+    },
+    "member-access": {
+      "options": "no-public"
+    },
+    "no-bitwise": {
+      "severity": "off"
+    },
+    "no-consecutive-blank-lines": {
+      "options": 2
+    },
+    "no-console": {
+      "severity": "off"
+    },
+    "no-empty-interface": {
+      "severity": "off"
+    },
+    "object-literal-sort-keys": {
+      "severity": "off"
+    },
+    "semicolon": {
+      "options": "never"
+    },
+    "space-before-function-paren": {
+      "options": {
+        "anonymous": "always",
+        "asyncArrow": "always",
+        "constructor": "never",
+        "method": "never",
+        "named": "never"
+      }
+    },
+    "trailing-comma": {
+      "options": {
+        "singleline": "never",
+        "multiline": "never"
+      }
+    }
+  },
+  "jsRules": true
+}

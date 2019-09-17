@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "importHelpers": true,
+    "lib": [
+      "es2018"
+    ],
+    "module": "commonjs",
+    "noEmitOnError": true,
+    "noImplicitReturns": true,
+    "outDir": "build",
+    "strict": true,
+    "target": "es6",
+    "typeRoots": [
+      "node_modules/@types",
+      "typings"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "src/**/*.spec.ts"
+  ],
+  "include": [
+    "src/**/*.ts",
+    "typings/**/*.d.ts"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "name": "net-log",
+  "version": "0.0.1",
+  "description": "",
+  "author": {
+    "name": "Jake Marsden",
+    "email": "jakemarsdenjm@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.marsden.site:jake/net-log.git"
+  },
+  "license": "MIT",
+  "private": true,
+  "main": "build/index.js",
+  "files": [
+    "/build"
+  ],
+  "dependencies": {
+    "dotenv-safe": "8.1.0",
+    "tslib": "1.10.0"
+  },
+  "devDependencies": {
+    "@types/dotenv-safe": "5.0.3",
+    "@types/jest": "24.0.18",
+    "@types/node": "12.7.5",
+    "jest": "24.9.0",
+    "nodemon": "1.19.2",
+    "npm-run-all": "4.1.5",
+    "rimraf": "3.0.0",
+    "ts-jest": "24.1.0",
+    "ts-node": "8.4.1",
+    "tslint": "5.20.0",
+    "typescript": "3.6.3"
+  },
+  "scripts": {
+    "build": "npm-run-all clean lint compile test",
+    "build:watch": "nodemon -V -e * -x \"npm run build\" -w jest.json -w tsconfig.json -w tslint.json -w src",
+    "clean": "rimraf build/* coverage/*",
+    "compile": "tsc",
+    "lint": "tslint -c tslint.json -p tsconfig.json",
+    "start": "ts-node src/index.ts",
+    "start:prod": "node build/index.js",
+    "start:watch": "nodemon -V -e * -x \"npm run start\" -w .env -w .env.example -w jest.json -w tsconfig.json -w tslint.json -w src",
+    "test": "jest -c jest.json"
+  }
+}
