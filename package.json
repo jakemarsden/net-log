@@ -17,7 +17,9 @@
     "/build"
   ],
   "dependencies": {
+    "cap": "0.2.1",
     "dotenv-safe": "8.1.0",
+    "net-decode": "file:../net-decode",
     "tslib": "1.10.0"
   },
   "devDependencies": {
