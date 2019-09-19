@@ -19,12 +19,16 @@
   "dependencies": {
     "cap": "0.2.1",
     "dotenv-safe": "8.1.0",
+    "knex": "0.19.4",
+    "luxon": "1.17.3",
+    "mysql": "2.17.1",
     "net-decode": "file:../net-decode",
     "tslib": "1.10.0"
   },
   "devDependencies": {
     "@types/dotenv-safe": "5.0.3",
     "@types/jest": "24.0.18",
+    "@types/luxon": "1.15.2",
     "@types/node": "12.7.5",
     "jest": "24.9.0",
     "nodemon": "1.19.2",

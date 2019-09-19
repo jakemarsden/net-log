@@ -1,33 +1,10 @@
-import { decodeFrame, decodePacket, Ipv4Address } from "net-decode"
+import { DateTime, Duration } from "luxon"
+import { decodeFrame, decodePacket } from "net-decode"
+import Db from "./db"
+import { DeviceStats, PeriodStats } from "./types"
+import { CollectionUtil } from "./utils"
 
-let stats: PeriodStats = initStats(Date.now())
-
-/**
- * Statistics for a single period
- */
-interface PeriodStats {
-    /**
-     * Millis since the epoch
-     */
-    periodStart: number
-    /**
-     * Millis since the epoch
-     */
-    periodEnd: number
-
-    devices: Record<Ipv4Address, DeviceStats>
-    total: TrafficStats
-}
-
-interface DeviceStats {
-    in: TrafficStats
-    out: TrafficStats
-}
-
-interface TrafficStats {
-    bytes: number
-    packets: number
-}
+let stats: PeriodStats = initStats(DateTime.utc())
 
 /**
  * Record statistics about the recieved frame as part of the current period
@@ -48,53 +25,49 @@ function handleFrame(frameBuf: Buffer): void {
     const packetBytes = frame.payload.byteLength // don't count layer 2 headers
     const { sourceAddress: srcAddr, destinationAddress: dstAddr } = packet
 
-    const srcStats = stats.devices[srcAddr] || (stats.devices[srcAddr] = initDeviceStats())
-    const dstStats = stats.devices[dstAddr] || (stats.devices[dstAddr] = initDeviceStats())
-    srcStats.out.bytes += packetBytes
-    srcStats.out.packets++
-    dstStats.in.bytes += packetBytes
-    dstStats.in.packets++
+    const srcStats = CollectionUtil.computeIfAbsent(stats.devices, srcAddr, initDeviceStats)
+    const dstStats = CollectionUtil.computeIfAbsent(stats.devices, dstAddr, initDeviceStats)
 
-    stats.total.bytes += packetBytes
-    stats.total.packets++
+    srcStats.bytesOut += packetBytes
+    srcStats.packets++
+    dstStats.bytesIn += packetBytes
+    dstStats.packets++
+
+    stats.bytes += packetBytes
+    stats.packets++
 }
 
 /**
  * Write the current period's statistics to disk and then start a new period
  */
-function commit(): void {
-    const now = Date.now()
+function commit(db: Db): void {
+    const now = DateTime.utc()
 
     const periodStats = stats
     stats = initStats(now)
-    periodStats.periodEnd = now
 
-    console.info(JSON.stringify(periodStats, null, 2))
+    periodStats.periodLen = periodStats.periodStart.diff(now).negate()
+    db.savePeriodStats(periodStats)
 }
 
 /**
  * Create blank statistics for a new period starting *now*
  */
-function initStats(periodStart: number): PeriodStats {
+function initStats(periodStart: DateTime): PeriodStats {
     const stat: PeriodStats = {
         periodStart,
-        periodEnd: 0,
-        devices: {},
-        total: initTrafficStats()
+        periodLen: Duration.fromMillis(0),
+        devices: new Map(),
+        bytes: 0,
+        packets: 0
     }
     return stat
 }
 
 function initDeviceStats(): DeviceStats {
     return {
-        in: initTrafficStats(),
-        out: initTrafficStats()
-    }
-}
-
-function initTrafficStats(): TrafficStats {
-    return {
-        bytes: 0,
+        bytesIn: 0,
+        bytesOut: 0,
         packets: 0
     }
 }
