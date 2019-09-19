@@ -4,58 +4,65 @@ import Db from "./db"
 import { DeviceStats, PeriodStats } from "./types"
 import { CollectionUtil } from "./utils"
 
-let stats: PeriodStats = initStats(DateTime.utc())
+export default class StatRecorder {
+    private stats: PeriodStats = initStats(DateTime.utc())
 
-/**
- * Record statistics about the recieved frame as part of the current period
- */
-function handleFrame(frameBuf: Buffer, network: Ipv4Address, netmask: Ipv4Address): void {
-    const frame = decodeFrame(frameBuf)
-    if (frame === undefined) {
-        // don't record non-decodable frames
-        return
+    constructor(private readonly db: Db, private readonly network: Ipv4Address, private readonly netmask: Ipv4Address) {
     }
 
-    const packet = "ethertype" in frame ? decodePacket(frame.ethertype, frame.payload) : undefined
-    if (packet === undefined) {
-        // don't record non-network traffic
-        return
+    /**
+     * Record statistics about the recieved frame as part of the current period
+     */
+    handleFrame(frameBuf: Buffer): void {
+        const { stats, network, netmask } = this
+
+        const frame = decodeFrame(frameBuf)
+        if (frame === undefined) {
+            // don't record non-decodable frames
+            return
+        }
+
+        const packet = "ethertype" in frame ? decodePacket(frame.ethertype, frame.payload) : undefined
+        if (packet === undefined) {
+            // don't record non-network traffic
+            return
+        }
+
+        const srcAddr = packet.sourceAddress
+        const dstAddr = packet.destinationAddress
+        const srcInSubnet = Ipv4AddressUtil.networkAddress(srcAddr, netmask) === network
+        const dstInSubnet = Ipv4AddressUtil.networkAddress(dstAddr, netmask) === network
+        const packetBytes = frame.payload.byteLength // don't count layer 2 headers
+
+        if (srcInSubnet) {
+            const srcStats = CollectionUtil.computeIfAbsent(stats.devices, srcAddr, initDeviceStats)
+            srcStats.bytesOut += packetBytes
+            srcStats.packets++
+        }
+        if (dstInSubnet) {
+            const dstStats = CollectionUtil.computeIfAbsent(stats.devices, dstAddr, initDeviceStats)
+            dstStats.bytesIn += packetBytes
+            dstStats.packets++
+        }
+        if (srcInSubnet || dstInSubnet) {
+            stats.bytes += packetBytes
+            stats.packets++
+        }
     }
 
-    const srcAddr = packet.sourceAddress
-    const dstAddr = packet.destinationAddress
-    const srcInSubnet = Ipv4AddressUtil.networkAddress(srcAddr, netmask) === network
-    const dstInSubnet = Ipv4AddressUtil.networkAddress(dstAddr, netmask) === network
-    const packetBytes = frame.payload.byteLength // don't count layer 2 headers
+    /**
+     * Write the current period's statistics to disk and then start a new period
+     */
+    commit(): void {
+        const { stats, db } = this
+        const now = DateTime.utc()
 
-    if (srcInSubnet) {
-        const srcStats = CollectionUtil.computeIfAbsent(stats.devices, srcAddr, initDeviceStats)
-        srcStats.bytesOut += packetBytes
-        srcStats.packets++
+        this.stats = initStats(now)
+
+        stats.periodLen = stats.periodStart.diff(now).negate()
+
+        this.db.savePeriodStats(stats)
     }
-    if (dstInSubnet) {
-        const dstStats = CollectionUtil.computeIfAbsent(stats.devices, dstAddr, initDeviceStats)
-        dstStats.bytesIn += packetBytes
-        dstStats.packets++
-    }
-    if (srcInSubnet || dstInSubnet) {
-        stats.bytes += packetBytes
-        stats.packets++
-    }
-}
-
-/**
- * Write the current period's statistics to disk and then start a new period
- */
-function commit(db: Db): void {
-    const now = DateTime.utc()
-
-    const periodStats = stats
-    stats = initStats(now)
-
-    periodStats.periodLen = periodStats.periodStart.diff(now).negate()
-
-    db.savePeriodStats(periodStats)
 }
 
 /**
@@ -79,9 +86,3 @@ function initDeviceStats(): DeviceStats {
         packets: 0
     }
 }
-
-const statRecorder = {
-    handleFrame,
-    commit
-}
-export default statRecorder

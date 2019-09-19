@@ -4,7 +4,7 @@ import "./env"
 import { Cap } from "cap"
 import { Ipv4AddressUtil } from "net-decode"
 import Db, { ConnectionDetails } from "./db"
-import statRecorder from "./stat-recorder"
+import StatRecorder from "./stat-recorder"
 
 main()
 
@@ -21,14 +21,16 @@ function main(): void {
         user: process.env.DB_USER!,
         password: process.env.DB_PASS!
     }
+
     const db = new Db(process.env.DB_TYPE!, dbConn)
+    const trafficStats = new StatRecorder(db, captureNetwork, captureNetmask)
 
     openCaptureDevice(
         captureDevice,
         "ETHERNET",
-        frameBuf => statRecorder.handleFrame(frameBuf, captureNetwork, captureNetmask)
+        frameBuf => trafficStats.handleFrame(frameBuf)
     )
-    setInterval(() => statRecorder.commit(db), 1000 * commitInterval)
+    setInterval(() => trafficStats.commit(), 1000 * commitInterval)
 }
 
 /**
