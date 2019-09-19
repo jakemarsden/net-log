@@ -2,6 +2,7 @@
 import "./env"
 
 import { Cap } from "cap"
+import { Ipv4AddressUtil } from "net-decode"
 import Db, { ConnectionDetails } from "./db"
 import statRecorder from "./stat-recorder"
 
@@ -9,6 +10,8 @@ main()
 
 function main(): void {
     const captureDevice = process.env.CAPTURE_DEVICE!
+    const captureNetwork = Ipv4AddressUtil.valueOf(process.env.CAPTURE_NETWORK!)
+    const captureNetmask = Ipv4AddressUtil.networkMask(parseInt(process.env.CAPTURE_PREFIX!, 10))
     const commitInterval = parseInt(process.env.COMMIT_INTERVAL!, 10)
 
     const dbConn: ConnectionDetails = {
@@ -20,7 +23,11 @@ function main(): void {
     }
     const db = new Db(process.env.DB_TYPE!, dbConn)
 
-    openCaptureDevice(captureDevice, "ETHERNET", statRecorder.handleFrame)
+    openCaptureDevice(
+        captureDevice,
+        "ETHERNET",
+        frameBuf => statRecorder.handleFrame(frameBuf, captureNetwork, captureNetmask)
+    )
     setInterval(() => statRecorder.commit(db), 1000 * commitInterval)
 }
 
@@ -40,7 +47,7 @@ function openCaptureDevice(
 
     const cap = new Cap()
 
-    console.debug(`Opening device for packet capture: "${deviceName}"`)
+    console.info(`Opening device for packet capture: "${deviceName}"`)
     const capType = cap.open(deviceName, filter, libcapBufSize, frameBuf)
 
     if (capType !== linkType) {
@@ -56,13 +63,13 @@ function openCaptureDevice(
         cap.setMaxListeners(0)
     }
 
-    console.debug(`Capturing network traffic on "${deviceName}"`)
+    console.info(`Capturing network traffic on "${deviceName}"`)
     cap.on("packet", (nbytes, truncated) => callback(truncated ? frameBuf : frameBuf.subarray(0, nbytes), truncated))
 
     let open = true
     const closeCaptureDevice = () => {
         if (open) {
-            console.debug(`Closing capture device: "${deviceName}"`)
+            console.info(`Closing capture device: "${deviceName}"`)
             open = false
             cap.close()
         }

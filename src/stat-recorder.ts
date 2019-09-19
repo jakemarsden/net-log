@@ -1,5 +1,5 @@
 import { DateTime, Duration } from "luxon"
-import { decodeFrame, decodePacket } from "net-decode"
+import { decodeFrame, decodePacket, Ipv4Address, Ipv4AddressUtil } from "net-decode"
 import Db from "./db"
 import { DeviceStats, PeriodStats } from "./types"
 import { CollectionUtil } from "./utils"
@@ -9,7 +9,7 @@ let stats: PeriodStats = initStats(DateTime.utc())
 /**
  * Record statistics about the recieved frame as part of the current period
  */
-function handleFrame(frameBuf: Buffer): void {
+function handleFrame(frameBuf: Buffer, network: Ipv4Address, netmask: Ipv4Address): void {
     const frame = decodeFrame(frameBuf)
     if (frame === undefined) {
         // don't record non-decodable frames
@@ -22,19 +22,26 @@ function handleFrame(frameBuf: Buffer): void {
         return
     }
 
+    const srcAddr = packet.sourceAddress
+    const dstAddr = packet.destinationAddress
+    const srcInSubnet = Ipv4AddressUtil.networkAddress(srcAddr, netmask) === network
+    const dstInSubnet = Ipv4AddressUtil.networkAddress(dstAddr, netmask) === network
     const packetBytes = frame.payload.byteLength // don't count layer 2 headers
-    const { sourceAddress: srcAddr, destinationAddress: dstAddr } = packet
 
-    const srcStats = CollectionUtil.computeIfAbsent(stats.devices, srcAddr, initDeviceStats)
-    const dstStats = CollectionUtil.computeIfAbsent(stats.devices, dstAddr, initDeviceStats)
-
-    srcStats.bytesOut += packetBytes
-    srcStats.packets++
-    dstStats.bytesIn += packetBytes
-    dstStats.packets++
-
-    stats.bytes += packetBytes
-    stats.packets++
+    if (srcInSubnet) {
+        const srcStats = CollectionUtil.computeIfAbsent(stats.devices, srcAddr, initDeviceStats)
+        srcStats.bytesOut += packetBytes
+        srcStats.packets++
+    }
+    if (dstInSubnet) {
+        const dstStats = CollectionUtil.computeIfAbsent(stats.devices, dstAddr, initDeviceStats)
+        dstStats.bytesIn += packetBytes
+        dstStats.packets++
+    }
+    if (srcInSubnet || dstInSubnet) {
+        stats.bytes += packetBytes
+        stats.packets++
+    }
 }
 
 /**
@@ -47,6 +54,7 @@ function commit(db: Db): void {
     stats = initStats(now)
 
     periodStats.periodLen = periodStats.periodStart.diff(now).negate()
+
     db.savePeriodStats(periodStats)
 }
 
