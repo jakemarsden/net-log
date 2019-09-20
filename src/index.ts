@@ -2,6 +2,7 @@
 import "./env"
 
 import { Cap } from "cap"
+import express, { Express } from "express"
 import { Ipv4AddressUtil } from "net-decode"
 import Db, { ConnectionDetails } from "./db"
 import StatRecorder from "./stat-recorder"
@@ -13,6 +14,10 @@ function main(): void {
     const captureNetwork = Ipv4AddressUtil.valueOf(process.env.CAPTURE_NETWORK!)
     const captureNetmask = Ipv4AddressUtil.networkMask(parseInt(process.env.CAPTURE_PREFIX!, 10))
     const commitInterval = parseInt(process.env.COMMIT_INTERVAL!, 10)
+    const appHost = process.env.APP_HOST!
+    const appPort = parseInt(process.env.APP_PORT!, 10)
+    const appUrl = normaliseUrl(process.env.APP_URL!)
+    const appTitle = process.env.APP_TITLE!
 
     const dbConn: ConnectionDetails = {
         host: process.env.DB_HOST!,
@@ -25,12 +30,32 @@ function main(): void {
     const db = new Db(process.env.DB_TYPE!, dbConn)
     const trafficStats = new StatRecorder(db, captureNetwork, captureNetmask)
 
-    openCaptureDevice(
-        captureDevice,
-        "ETHERNET",
-        frameBuf => trafficStats.handleFrame(frameBuf)
+    const app = initServer(appUrl, appTitle)
+    app.listen(
+        appPort,
+        appHost,
+        () => {
+            console.info(`Application started and listening on http://${appHost}:${appPort}${appUrl || "/"}`)
+
+            // Start capturing and recording network traffic
+            openCaptureDevice(
+                captureDevice,
+                "ETHERNET",
+                frameBuf => trafficStats.handleFrame(frameBuf)
+            )
+            setInterval(() => trafficStats.commit(), 1000 * commitInterval)
+        }
     )
-    setInterval(() => trafficStats.commit(), 1000 * commitInterval)
+}
+
+function initServer(baseUrl: string, title: string): Express {
+    const app = express()
+    app.set("view engine", "pug")
+    app.set("views", "public")
+
+    app.get(`${baseUrl}/`, (_, res) => res.render("index", { baseUrl, title }))
+    app.use(`${baseUrl}/static/`, express.static("public/static"))
+    return app
 }
 
 /**
@@ -77,4 +102,17 @@ function openCaptureDevice(
         }
     }
     return closeCaptureDevice
+}
+
+/**
+ * Ensures the URL contains a leading slash but not a trailing slash, or is an empty string
+ */
+function normaliseUrl(url: string): string {
+    if (url.endsWith("/")) {
+        url = url.substring(0, url.length - 1)
+    }
+    if (!url.startsWith("/") && url.length !== 0) {
+        url = "/" + url
+    }
+    return url
 }
