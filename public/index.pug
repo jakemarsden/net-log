@@ -1,9 +1,21 @@
+doctype html
 html(lang="en")
   head
     meta(charset="utf-8")
     meta(content="width=device-width, initial-scale=1", name="viewport")
-    link(href=`${baseUrl}/static/index.css`, rel="stylesheet", type="text/css")
-    title= title
+    link(href=`${app.baseUrl}/static/index.css`, rel="stylesheet")
+    title= app.title
+
+    script.
+      window.app = {
+        baseUrl: "!{app.baseUrl}",
+        title: "!{app.title}",
+        trafficChart: JSON.parse("!{JSON.stringify(app.trafficChart).replace(/"/g, '\\"')}")
+      }
+    script(src="https://cdn.jsdelivr.net/npm/moment@2.24.0")
+    script(src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0")
+    script(src=`${app.baseUrl}/static/index.js`)
 
   body
-    h1= title
+    h1= app.title
+    canvas(id="chart_traffic")

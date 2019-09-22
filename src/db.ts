@@ -1,5 +1,8 @@
 import Knex from "knex"
-import { PeriodStats } from "./types"
+import { DateTime, Duration } from "luxon"
+import { Ipv4Address } from "net-decode"
+import { DeviceStats, PeriodStats } from "./types"
+import { CollectionUtil } from "./utils"
 
 export type ConnectionDetails = RemoteDbConnDetails | SocketDbConnDetails | FileDbConnDetails
 
@@ -32,6 +35,33 @@ interface FileDbConnDetails {
     debug?: boolean
 }
 
+interface PeriodStatRow {
+    /**
+     * `DATETIME NOT NULL`
+     */
+    period_start: Date
+    /**
+     * `INTEGER UNSIGNED NOT NULL`
+     */
+    period_len: number
+    /**
+     * `INTEGER UNSIGNED NOT NULL`
+     */
+    ip_addr: number
+    /**
+     * `BIGINT UNSIGNED NOT NULL`
+     */
+    bytes_in: number
+    /**
+     * `BIGINT UNSIGNED NOT NULL`
+     */
+    bytes_out: number
+    /**
+     * `BIGINT UNSIGNED NOT NULL`
+     */
+    packets: number
+}
+
 export default class Db {
     private readonly db: Knex
 
@@ -43,27 +73,82 @@ export default class Db {
         })
     }
 
-    savePeriodStats(stats: PeriodStats): void {
+    async getDailyPeriodStats(): Promise<PeriodStats[]> {
+        const rows = await this.db.queryBuilder()
+            .select({
+                period_start: "period_start",
+                ip_addr: "ip_addr"
+            })
+            .sum({
+                bytes_in: "bytes_in",
+                bytes_out: "bytes_out",
+                packets: "packets"
+            })
+            .from("period_stat")
+            .groupByRaw("DATE(period_start)")
+            .groupBy("ip_addr")
+        return parseStatRows(rows)
+    }
+
+    async savePeriodStats(stats: PeriodStats): Promise<void> {
         const rows = constructStatRows(stats)
         if (rows.length === 0) {
             console.info(`No rows to commit to the database`)
             return
         }
-        this.db.queryBuilder()
-            .insert(rows)
-            .into("period_stat")
-            .then(() => console.debug(`Committed ${rows.length} rows to the database`))
-            .catch(err => console.trace(`Unable to commit ${rows.length} rows to the database`, err))
+        try {
+            await this.db.queryBuilder()
+                .insert(rows)
+                .into("period_stat")
+        } catch (err) {
+            console.trace(`Unable to commit ${rows.length} rows to the database`, err)
+            return
+        }
+        console.debug(`Committed ${rows.length} rows to the database`)
     }
 }
 
-function constructStatRows(stats: PeriodStats): object[] {
-    const rows: object[] = []
+function parseStatRows(rows: PeriodStatRow[]): PeriodStats[] {
+    const stats = new Map<number, PeriodStats>()
+    for (const row of rows) {
+        const stat: PeriodStats = CollectionUtil.computeIfAbsent(
+            stats,
+            row.period_start.getTime(),
+            () => ({
+                periodStart: DateTime.fromJSDate(row.period_start, { zone: "utc" }),
+                periodLen: Duration.fromObject({ seconds: row.period_len }),
+                bytes: 0,
+                packets: 0,
+                devices: new Map<Ipv4Address, DeviceStats>()
+            })
+        )
+        stat.bytes += row.bytes_in
+        stat.bytes += row.bytes_out
+        stat.packets += row.packets
 
-    const periodStart = stats.periodStart.toFormat("yyyy-MM-dd HH:mm:ss.SSS")
+        const deviceStat: DeviceStats = CollectionUtil.computeIfAbsent(
+            stat.devices,
+            row.ip_addr,
+            () => ({
+                bytesIn: 0,
+                bytesOut: 0,
+                packets: 0
+            })
+        )
+        deviceStat.bytesIn += row.bytes_in as number
+        deviceStat.bytesOut += row.bytes_out
+        deviceStat.packets += row.packets
+    }
+    return Array.from(stats.values())
+}
+
+function constructStatRows(stats: PeriodStats): PeriodStatRow[] {
+    const rows: PeriodStatRow[] = []
+
+    const periodStart = stats.periodStart.toJSDate()
     const periodLen = stats.periodLen.as("milliseconds")
     for (const [addr, device] of stats.devices) {
-        const row = {
+        const row: PeriodStatRow = {
             period_start: periodStart,
             period_len: periodLen,
             ip_addr: addr,

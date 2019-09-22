@@ -2,8 +2,9 @@
 import "./env"
 
 import { Cap } from "cap"
-import express, { Express } from "express"
+import express from "express"
 import { Ipv4AddressUtil } from "net-decode"
+import { RootController } from "./controller"
 import Db, { ConnectionDetails } from "./db"
 import StatRecorder from "./stat-recorder"
 
@@ -16,8 +17,7 @@ function main(): void {
     const commitInterval = parseInt(process.env.COMMIT_INTERVAL!, 10)
     const appHost = process.env.APP_HOST!
     const appPort = parseInt(process.env.APP_PORT!, 10)
-    const appUrl = normaliseUrl(process.env.APP_URL!)
-    const appTitle = process.env.APP_TITLE!
+    const appUrl = process.env.APP_URL = normaliseUrl(process.env.APP_URL!)
 
     const dbConn: ConnectionDetails = {
         host: process.env.DB_HOST!,
@@ -28,9 +28,16 @@ function main(): void {
     }
 
     const db = new Db(process.env.DB_TYPE!, dbConn)
+    const rootController = new RootController(db)
     const trafficStats = new StatRecorder(db, captureNetwork, captureNetmask)
 
-    const app = initServer(appUrl, appTitle)
+    const app = express()
+    app.set("view engine", "pug")
+    app.set("views", "public")
+
+    app.use(`${appUrl}/static`, express.static("public/static"))
+    app.use(appUrl || "/", rootController.router)
+
     app.listen(
         appPort,
         appHost,
@@ -46,16 +53,6 @@ function main(): void {
             setInterval(() => trafficStats.commit(), 1000 * commitInterval)
         }
     )
-}
-
-function initServer(baseUrl: string, title: string): Express {
-    const app = express()
-    app.set("view engine", "pug")
-    app.set("views", "public")
-
-    app.get(`${baseUrl}/`, (_, res) => res.render("index", { baseUrl, title }))
-    app.use(`${baseUrl}/static/`, express.static("public/static"))
-    return app
 }
 
 /**
