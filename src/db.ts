@@ -13,7 +13,7 @@ interface RemoteDbConnDetails {
     user: string
     password: string
     /**
-     * In milliseconds, defaults to `10000`
+     * In milliseconds, defaults to `10_000`
      */
     connectTimeout?: number
     requestTimeout?: number
@@ -85,7 +85,8 @@ export default class Db {
                 packets: "packets"
             })
             .from("period_stat")
-            .groupByRaw("DATE(period_start)")
+            // TODO: Don't hard-code the local timezone, get it from the client
+            .groupByRaw("DATE(CONVERT_TZ(period_start, '+00:00', '+12:00'))")
             .groupBy("ip_addr")
         return parseStatRows(rows)
     }
@@ -111,11 +112,14 @@ export default class Db {
 function parseStatRows(rows: PeriodStatRow[]): PeriodStats[] {
     const stats = new Map<number, PeriodStats>()
     for (const row of rows) {
+        const periodStart = DateTime.fromJSDate(row.period_start, { zone: "utc" })
+            .toLocal()
+            .startOf("day")
         const stat: PeriodStats = CollectionUtil.computeIfAbsent(
             stats,
-            row.period_start.getTime(),
+            periodStart.toMillis(),
             () => ({
-                periodStart: DateTime.fromJSDate(row.period_start, { zone: "utc" }),
+                periodStart,
                 periodLen: Duration.fromObject({ seconds: row.period_len }),
                 bytes: 0,
                 packets: 0,

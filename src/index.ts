@@ -24,7 +24,8 @@ function main(): void {
         port: parseInt(process.env.DB_PORT!, 10),
         database: process.env.DB_NAME!,
         user: process.env.DB_USER!,
-        password: process.env.DB_PASS!
+        password: process.env.DB_PASS!,
+        timezone: "utc"
     }
 
     const db = new Db(process.env.DB_TYPE!, dbConn)

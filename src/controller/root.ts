@@ -34,11 +34,7 @@ function constructTrafficBarChart(stats: PeriodStats[]): ChartConfiguration {
 
     const dataSets = new Map<number, ChartDataSet>()
     for (const stat of stats) {
-        const date = stat.periodStart
-            .toLocal()
-            .startOf("day")
-            .toISO()
-
+        const date = stat.periodStart.toISO()
         for (const [addr, device] of stat.devices) {
             const dataSet = CollectionUtil.computeIfAbsent(
                 dataSets,
@@ -51,7 +47,7 @@ function constructTrafficBarChart(stats: PeriodStats[]): ChartConfiguration {
 
             const dataPoint: ChartPoint = {
                 t: date,
-                y: (device.bytesIn + device.bytesOut) / 1000_000_000
+                y: (device.bytesIn + device.bytesOut) / 1_000_000_000.0
             }
             dataSet.data.push(dataPoint)
         }
