@@ -50,7 +50,7 @@
     "lint": "tslint -c tslint.json -p tsconfig.json",
     "start": "ts-node src/index.ts",
     "start:prod": "node build/index.js",
-    "start:watch": "nodemon -V -e * -x \"npm run start\" -w .env -w .env.example -w jest.json -w tsconfig.json -w tslint.json -w src",
+    "start:watch": "nodemon -V -e * -x \"npm run start\" -w .env -w .env.example -w config.json -w config.example.json -w jest.json -w tsconfig.json -w tslint.json -w src",
     "test": "jest -c jest.json"
   }
 }

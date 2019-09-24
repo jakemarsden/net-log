@@ -4,6 +4,7 @@ import "./env"
 import { Cap } from "cap"
 import express from "express"
 import { Ipv4AddressUtil } from "net-decode"
+import APP_CONFIG from "./config"
 import { RootController } from "./controller"
 import Db, { ConnectionDetails } from "./db"
 import StatRecorder from "./stat-recorder"
@@ -29,7 +30,7 @@ function main(): void {
     }
 
     const db = new Db(process.env.DB_TYPE!, dbConn)
-    const rootController = new RootController(db)
+    const rootController = new RootController(db, APP_CONFIG.groups, APP_CONFIG.defaultGroup)
     const trafficStats = new StatRecorder(db, captureNetwork, captureNetmask)
 
     const app = express()

@@ -1,6 +1,14 @@
 import { DateTime, Duration } from "luxon"
 import { Ipv4Address } from "net-decode"
 
+export interface DeviceGroup {
+    name: string
+    /**
+     * Array of tuples in the form `[network, netmask]`
+     */
+    addresses: Array<[Ipv4Address, Ipv4Address]>
+}
+
 /**
  * Statistics for a single period
  */
