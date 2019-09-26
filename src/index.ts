@@ -3,7 +3,6 @@ import "./env"
 
 import { Cap } from "cap"
 import express from "express"
-import { Ipv4AddressUtil } from "net-decode"
 import APP_CONFIG from "./config"
 import { RootController } from "./controller"
 import Db, { ConnectionDetails } from "./db"
@@ -12,10 +11,6 @@ import StatRecorder from "./stat-recorder"
 main()
 
 function main(): void {
-    const captureDevice = process.env.CAPTURE_DEVICE!
-    const captureNetwork = Ipv4AddressUtil.valueOf(process.env.CAPTURE_NETWORK!)
-    const captureNetmask = Ipv4AddressUtil.networkMask(parseInt(process.env.CAPTURE_PREFIX!, 10))
-    const commitInterval = parseInt(process.env.COMMIT_INTERVAL!, 10)
     const appHost = process.env.APP_HOST!
     const appPort = parseInt(process.env.APP_PORT!, 10)
     const appUrl = process.env.APP_URL = normaliseUrl(process.env.APP_URL!)
@@ -31,7 +26,7 @@ function main(): void {
 
     const db = new Db(process.env.DB_TYPE!, dbConn)
     const rootController = new RootController(db, APP_CONFIG.groups, APP_CONFIG.defaultGroup)
-    const trafficStats = new StatRecorder(db, captureNetwork, captureNetmask)
+    const trafficStats = new StatRecorder(db, APP_CONFIG.capture)
 
     const app = express()
     app.set("view engine", "pug")
@@ -48,11 +43,11 @@ function main(): void {
 
             // Start capturing and recording network traffic
             openCaptureDevice(
-                captureDevice,
+                APP_CONFIG.capture.device,
                 "ETHERNET",
                 frameBuf => trafficStats.handleFrame(frameBuf)
             )
-            setInterval(() => trafficStats.commit(), 1000 * commitInterval)
+            setInterval(() => trafficStats.commit(), APP_CONFIG.capture.interval.as("milliseconds"))
         }
     )
 }

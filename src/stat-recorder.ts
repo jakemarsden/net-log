@@ -1,20 +1,20 @@
 import { DateTime, Duration } from "luxon"
-import { decodeFrame, decodePacket, Ipv4Address, Ipv4AddressUtil } from "net-decode"
+import { decodeFrame, decodePacket, Ipv4AddressUtil } from "net-decode"
 import Db from "./db"
-import { DeviceStats, PeriodStats } from "./types"
+import { CaptureOptions, DeviceStats, PeriodStats } from "./types"
 import { CollectionUtil } from "./utils"
 
 export default class StatRecorder {
     private stats: PeriodStats = initStats(DateTime.utc())
 
-    constructor(private readonly db: Db, private readonly network: Ipv4Address, private readonly netmask: Ipv4Address) {
+    constructor(private readonly db: Db, private readonly options: CaptureOptions) {
     }
 
     /**
      * Record statistics about the recieved frame as part of the current period
      */
     handleFrame(frameBuf: Buffer): void {
-        const { stats, network, netmask } = this
+        const { options, stats } = this
 
         const frame = decodeFrame(frameBuf)
         if (frame === undefined) {
@@ -30,9 +30,14 @@ export default class StatRecorder {
 
         const srcAddr = packet.sourceAddress
         const dstAddr = packet.destinationAddress
-        const srcInSubnet = Ipv4AddressUtil.networkAddress(srcAddr, netmask) === network
-        const dstInSubnet = Ipv4AddressUtil.networkAddress(dstAddr, netmask) === network
         const packetBytes = frame.payload.byteLength // don't count layer 2 headers
+
+        const srcInSubnet = options.networks.some(
+            ([network, netmask]) => Ipv4AddressUtil.networkAddress(srcAddr, netmask) === network
+        )
+        const dstInSubnet = options.networks.some(
+            ([network, netmask]) => Ipv4AddressUtil.networkAddress(dstAddr, netmask) === network
+        )
 
         if (srcInSubnet) {
             const srcStats = CollectionUtil.computeIfAbsent(stats.devices, srcAddr, initDeviceStats)
@@ -54,14 +59,14 @@ export default class StatRecorder {
      * Write the current period's statistics to disk and then start a new period
      */
     commit(): void {
-        const { stats, db } = this
+        const { db, stats } = this
         const now = DateTime.utc()
 
         this.stats = initStats(now)
 
         stats.periodLen = stats.periodStart.diff(now).negate()
 
-        this.db.savePeriodStats(stats)
+        db.savePeriodStats(stats)
     }
 }
 

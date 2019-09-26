@@ -1,6 +1,15 @@
 import { DateTime, Duration } from "luxon"
 import { Ipv4Address } from "net-decode"
 
+export interface CaptureOptions {
+    device: string
+    interval: Duration
+    /**
+     * Array of tuples in the form `[network, netmask]`
+     */
+    networks: Array<[Ipv4Address, Ipv4Address]>
+}
+
 export interface DeviceGroup {
     name: string
     /**
