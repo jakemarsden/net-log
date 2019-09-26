@@ -90,12 +90,20 @@ function constructTrafficBarChart(
         options: {
             scales: {
                 xAxes: [{
+                    gridLines: {
+                        color: "rgba(0, 0, 0, 0.2)",
+                        offsetGridLines: true
+                    },
+                    offset: true,
                     type: "time",
                     time: {
                         unit: "day"
                     }
                 }],
                 yAxes: [{
+                    gridLines: {
+                        color: "rgba(0, 0, 0, 0.2)"
+                    },
                     scaleLabel: {
                         display: true,
                         labelString: "Traffic (GB)"
