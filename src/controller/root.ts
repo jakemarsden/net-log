@@ -41,6 +41,7 @@ function constructTrafficBarChart(
         data: ChartPoint[]
     }
 
+    // groupName => (dateStr => { bytes })
     const groupStats = new Map<string, Map<string, { bytes: number }>>()
     for (const stat of stats) {
 
@@ -62,13 +63,24 @@ function constructTrafficBarChart(
         }
     }
 
-    const dataSets: ChartDataSet[] = Array.from(groupStats.entries()).map(([groupName, groupStat]) => ({
-        label: groupName,
-        data: Array.from(groupStat.entries()).map(([dateStr, stat]) => ({
-            t: dateStr,
-            y: stat.bytes / 1_000_000_000.0
-        }))
-    }))
+    const dataSets: ChartDataSet[] = Array.from(groupStats.keys())
+        .sort()
+        .map(groupName => {
+            const groupStat = groupStats.get(groupName)!
+            const data = Array.from(groupStat.keys())
+                .sort()
+                .map(dateStr => ({
+                    t: dateStr,
+                    y: groupStat.get(dateStr)!.bytes / 1_000_000_000.0
+                }))
+            return {
+                backgroundColor: toColorHash(groupName, 0.2),
+                borderColor: toColorHash(groupName),
+                borderWidth: 1,
+                label: groupName,
+                data
+            }
+        })
 
     const chart: ChartConfiguration = {
         type: "bar",
@@ -105,4 +117,28 @@ function findGroupByAddress(addr: Ipv4Address, groups: DeviceGroup[]): DeviceGro
         )
     )
     return foundGroup
+}
+
+/**
+ * @param alpha in the range [0, 1.0]
+ */
+function toColorHash(value: string, alpha: number = 1.0): string {
+    if (alpha < 0 || alpha > 1.0) {
+        throw new TypeError(`Illegal color alpha channel (expected [0, 1.0]): ${alpha}`)
+    }
+    const hash = hashCode(value)
+    const r = (hash & 0xff0000) >> 16
+    const g = (hash & 0xff00) >> 8
+    const b = hash & 0xff
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function hashCode(value: string): number {
+    let hash = 0
+    for (let i = 0; i < value.length; i++) {
+        const char = value.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+    }
+    return hash
 }
