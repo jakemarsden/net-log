@@ -74,6 +74,9 @@ export default class Db {
     }
 
     async getDailyPeriodStats(): Promise<PeriodStats[]> {
+        const logName = `${this.constructor.name}:getDailyPeriodStats`
+        console.debug(`${logName} :: selecting from database`)
+
         const rows = await this.db.queryBuilder()
             .select({
                 period_start: "period_start",
@@ -88,6 +91,8 @@ export default class Db {
             // TODO: Don't hard-code the local timezone, get it from the client
             .groupByRaw("DATE(CONVERT_TZ(period_start, '+00:00', '+12:00'))")
             .groupBy("ip_addr")
+
+        console.debug(`${logName} :: selected ${rows.length} rows`)
         return parseStatRows(rows)
     }
 

@@ -17,6 +17,9 @@ export class RootController {
     }
 
     private readonly handleReq: RequestHandler = async (_, res) => {
+        const logName = `${this.constructor.name}:handleReq`
+        console.debug(`${logName} :: quering database`)
+
         const stats = await this.db.getDailyPeriodStats()
         const trafficChart = constructTrafficBarChart(stats, this.groups, this.defaultGroup)
 
@@ -27,6 +30,8 @@ export class RootController {
                 trafficChart
             }
         }
+
+        console.debug(`${logName} :: rendering template`)
         res.render("index", renderOpts)
     }
 }

@@ -2,7 +2,7 @@
 import "./env"
 
 import { Cap } from "cap"
-import express from "express"
+import express, { Request, RequestHandler, Response } from "express"
 import APP_CONFIG from "./config"
 import { RootController } from "./controller"
 import Db, { ConnectionDetails } from "./db"
@@ -31,6 +31,15 @@ function main(): void {
     const app = express()
     app.set("view engine", "pug")
     app.set("views", "public")
+
+    app.use((req, res, next) => {
+        res.on(
+            "finish",
+            () => console.debug(`${req.method} ${req.protocol} ${req.url} => (${res.statusCode} ${res.statusMessage})`)
+        )
+        console.debug(`${req.method} ${req.protocol} ${req.url}`)
+        next()
+    })
 
     app.use(`${appUrl}/static`, express.static("public/static"))
     app.use(appUrl || "/", rootController.router)
