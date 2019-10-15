@@ -9,8 +9,7 @@ html(lang="en")
     script.
       window.app = {
         baseUrl: "!{app.baseUrl}",
-        title: "!{app.title}",
-        trafficChart: JSON.parse("!{JSON.stringify(app.trafficChart).replace(/"/g, '\\"')}")
+        title: "!{app.title}"
       }
     script(src="https://cdn.jsdelivr.net/npm/moment@2.24.0")
     script(src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0")

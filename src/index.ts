@@ -2,10 +2,12 @@
 import "./env"
 
 import { Cap } from "cap"
-import express, { Request, RequestHandler, Response } from "express"
+import express from "express"
 import APP_CONFIG from "./config"
-import { RootController } from "./controller"
+import ChartController from "./controller/chart"
+import RootController from "./controller/root"
 import Db, { ConnectionDetails } from "./db"
+import logMiddleware from "./logMiddleware"
 import StatRecorder from "./stat-recorder"
 
 main()
@@ -25,23 +27,17 @@ function main(): void {
     }
 
     const db = new Db(process.env.DB_TYPE!, dbConn)
-    const rootController = new RootController(db, APP_CONFIG.groups, APP_CONFIG.defaultGroup)
+    const chartController = new ChartController(db, APP_CONFIG.groups, APP_CONFIG.defaultGroup)
+    const rootController = new RootController()
     const trafficStats = new StatRecorder(db, APP_CONFIG.capture)
 
     const app = express()
     app.set("view engine", "pug")
     app.set("views", "public")
 
-    app.use((req, res, next) => {
-        res.on(
-            "finish",
-            () => console.debug(`${req.method} ${req.protocol} ${req.url} => (${res.statusCode} ${res.statusMessage})`)
-        )
-        console.debug(`${req.method} ${req.protocol} ${req.url}`)
-        next()
-    })
-
+    app.use(logMiddleware)
     app.use(`${appUrl}/static`, express.static("public/static"))
+    app.use(`${appUrl}/api/chart`, chartController.router)
     app.use(appUrl || "/", rootController.router)
 
     app.listen(
