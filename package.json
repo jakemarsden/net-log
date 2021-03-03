@@ -24,7 +24,7 @@
     "luxon": "1.17.3",
     "mysql": "2.17.1",
     "net-decode": "file:../net-decode",
-    "pug": "2.0.4",
+    "pug": "3.0.1",
     "tslib": "1.10.0"
   },
   "devDependencies": {
