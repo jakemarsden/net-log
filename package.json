@@ -20,7 +20,7 @@
     "cap": "0.2.1",
     "dotenv-safe": "8.1.0",
     "express": "4.17.1",
-    "knex": "0.19.4",
+    "knex": "2.3.0",
     "luxon": "1.17.3",
     "mysql": "2.17.1",
     "net-decode": "file:../net-decode",
